@@ -8,9 +8,11 @@ module ActiveAdmin
       class Comments < ActiveAdmin::Views::Panel
         builder_method :active_admin_comments_for
 
+        attr_accessor :resource
+
         def build(resource)
           @resource = resource
-          @comments = ActiveAdmin::Comment.find_for_resource_in_namespace @resource, active_admin_namespace.name
+          @comments = ActiveAdmin::Comment.find_for_resource_in_namespace resource, active_admin_namespace.name
           super(title, for: resource)
           build_comments
         end
@@ -33,6 +35,9 @@ module ActiveAdmin
                 comment.author ? auto_link(comment.author) : I18n.t('active_admin.comments.author_missing')
               end
               span pretty_format comment.created_at
+              if authorized?(ActiveAdmin::Auth::DESTROY, comment)
+                text_node link_to I18n.t('active_admin.comments.delete'), comments_url(comment.id), method: :delete, data: { confirm: I18n.t('active_admin.comments.delete_confirmation') }
+              end
             end
             div class: 'active_admin_comment_body' do
               simple_format comment.body
@@ -44,6 +49,14 @@ module ActiveAdmin
           span I18n.t('active_admin.comments.no_comments_yet'), class: 'empty'
         end
 
+        def comments_url(*args)
+          parts = []
+          parts << active_admin_namespace.name unless active_admin_namespace.root?
+          parts << active_admin_namespace.comments_registration_name.underscore
+          parts << 'path'
+          send parts.join('_'), *args
+        end
+
         def comment_form_url
           parts = []
           parts << active_admin_namespace.name unless active_admin_namespace.root?
@@ -53,10 +66,10 @@ module ActiveAdmin
         end
 
         def build_comment_form
-          self << active_admin_form_for(ActiveAdmin::Comment.new, url: comment_form_url) do |f|
+          active_admin_form_for(ActiveAdmin::Comment.new, url: comment_form_url) do |f|
             f.inputs do
-              f.input :resource_type, as: :hidden,  input_html: { value: ActiveAdmin::Comment.resource_type(@resource) }
-              f.input :resource_id,   as: :hidden,  input_html: { value: @resource.id }
+              f.input :resource_type, as: :hidden,  input_html: { value: ActiveAdmin::Comment.resource_type(parent.resource) }
+              f.input :resource_id,   as: :hidden,  input_html: { value: parent.resource.id }
               f.input :body,          label: false, input_html: { size: '80x8' }
             end
             f.actions do

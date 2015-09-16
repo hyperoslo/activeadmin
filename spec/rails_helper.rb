@@ -13,7 +13,7 @@ module ActiveAdminIntegrationSpecHelper
   end
 
   def reload_menus!
-    ActiveAdmin.application.namespaces.values.each{|n| n.reset_menu! }
+    ActiveAdmin.application.namespaces.each{|n| n.reset_menu! }
   end
 
   # Sometimes we need to reload the routes within
@@ -107,6 +107,10 @@ require ENV['RAILS_ROOT'] + '/config/environment'
 
 require 'rspec/rails'
 
+# Prevent Test::Unit's AutoRunner from executing during RSpec's rake task on
+# JRuby
+Test::Unit.run = true if defined?(Test::Unit) && Test::Unit.respond_to?(:run=)
+
 # Setup Some Admin stuff for us to play with
 include ActiveAdminIntegrationSpecHelper
 load_defaults!
@@ -133,39 +137,10 @@ end
 
 # All RSpec configuration needs to happen before any examples
 # or else it whines.
-require 'integration_example_group'
+require "support/active_admin_request_helpers"
 RSpec.configure do |c|
-  c.include RSpec::Rails::IntegrationExampleGroup, file_path: /\bspec\/requests\//
+  c.include ActiveAdminRequestHelpers, type: :request
   c.include Devise::TestHelpers, type: :controller
-end
-
-RSpec::Matchers.define :have_tag do |*args|
-
-  match_unless_raises Test::Unit::AssertionFailedError do |response|
-    tag = args.shift
-    content = args.first.is_a?(Hash) ? nil : args.shift
-
-    options = {
-      tag: tag.to_s
-    }.merge(args[0] || {})
-
-    options[:content] = content if content
-
-    begin
-      begin
-        assert_tag(options)
-      rescue NoMethodError
-        # We are not in a controller, so let's do the checking ourselves
-        doc = HTML::Document.new(response, false, false)
-        tag = doc.find(options)
-        assert tag, "expected tag, but no tag found matching #{options.inspect} in:\n#{response.inspect}"
-      end
-    # In Ruby 1.9, MiniTest::Assertion get's raised, so we'll
-    # handle raising a Test::Unit::AssertionFailedError
-    rescue MiniTest::Assertion => e
-      raise Test::Unit::AssertionFailedError, e.message
-    end
-  end
 end
 
 # improve the performance of the specs suite by not logging anything

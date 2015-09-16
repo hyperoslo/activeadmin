@@ -38,13 +38,20 @@ inject_into_file 'app/models/blog/post.rb', %q{
 }, after: 'class Blog::Post < ActiveRecord::Base'
 
 
+generate :model, "profile user_id:integer bio:text"
 generate :model, "user type:string first_name:string last_name:string username:string age:integer"
 inject_into_file 'app/models/user.rb', %q{
   has_many :posts, foreign_key: 'author_id'
+  has_one :profile
+  accepts_nested_attributes_for :profile, allow_destroy: true
   def display_name
     "#{first_name} #{last_name}"
   end
 }, after: 'class User < ActiveRecord::Base'
+
+inject_into_file 'app/models/profile.rb', %q{
+  belongs_to :user
+}, after: 'class Profile < ActiveRecord::Base'
 
 generate :model, 'publisher --migration=false --parent=User'
 generate :model, 'category name:string description:text'
@@ -80,6 +87,9 @@ inject_into_file "config/environments/test.rb", "  config.action_mailer.default_
 # Add our local Active Admin to the load path
 inject_into_file "config/environment.rb", "\n$LOAD_PATH.unshift('#{File.expand_path(File.join(File.dirname(__FILE__), '..', '..', 'lib'))}')\nrequire \"active_admin\"\n", after: "require File.expand_path('../application', __FILE__)"
 inject_into_file "config/application.rb", "\nrequire 'devise'\n", after: "require 'rails/all'"
+
+# Force strong parameters to raise exceptions
+inject_into_file 'config/application.rb', "\n\n    config.action_controller.action_on_unpermitted_parameters = :raise if Rails::VERSION::MAJOR == 4\n\n", after: 'class Application < Rails::Application'
 
 # Add some translations
 append_file "config/locales/en.yml", File.read(File.expand_path('../templates/en.yml', __FILE__))

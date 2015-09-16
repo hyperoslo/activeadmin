@@ -1,8 +1,8 @@
+require "active_admin/error"
+require "active_admin/dependency"
+
 module ActiveAdmin
   module Generators
-    class Error < Rails::Generators::Error
-    end
-
     class DeviseGenerator < Rails::Generators::NamedBase
       desc "Creates an admin user and uses Devise for authentication"
       argument :name, type: :string, default: "AdminUser"
@@ -17,9 +17,9 @@ module ActiveAdmin
 
       def install_devise
         begin
-          Dependency.devise! Dependency::DEVISE
+          Dependency.devise! Dependency::Requirements::DEVISE
         rescue DependencyError => e
-          raise Error, "#{e.message} If you don't want to use devise, run the generator with --skip-users."
+          raise ActiveAdmin::GeneratorError, "#{e.message} If you don't want to use devise, run the generator with --skip-users."
         end
 
         require 'devise'
@@ -34,7 +34,7 @@ module ActiveAdmin
 
       def create_admin_user
         if RESERVED_NAMES.include?(name.underscore)
-          raise Error, "The name #{name} is reserved by Active Admin"
+          raise ActiveAdmin::GeneratorError, "The name #{name} is reserved by Active Admin"
         end
         invoke "devise", [name]
       end
@@ -51,27 +51,14 @@ module ActiveAdmin
         gsub_file routes_file, /devise_for :#{plural_table_name}$/, "devise_for :#{plural_table_name}, ActiveAdmin::Devise.config"
       end
 
-      def add_default_user_to_migration
+      def add_default_user_to_seed
         # Don't assume that we have a migration!
-        devise_migration_file = Dir["db/migrate/*_devise_create_#{table_name}.rb"].first
-        return if devise_migration_file.nil? || !options[:default_user]
-
-        devise_migration_content = File.read(devise_migration_file)
+        seeds_file = Rails.application.paths["db/seeds.rb"].existent.first
+        return if seeds_file.nil? || !options[:default_user]
 
         create_user_code = "#{class_name}.create!(email: 'admin@example.com', password: 'password', password_confirmation: 'password')"
 
-        if devise_migration_content["def change"]
-          inject_into_file  devise_migration_file,
-                            "def migrate(direction)\n    super\n    # Create a default user\n    #{create_user_code} if direction == :up\n  end\n\n  ",
-                            before: "def change"
-        elsif devise_migration_content[/def (self.)?up/]
-          inject_into_file  devise_migration_file,
-                            "# Create a default user\n    #{create_user_code}\n\n    ",
-                            before: "add_index :#{table_name}, :email"
-        else
-          puts devise_migration_content
-          raise "Failed to add default admin user to migration."
-        end
+        append_to_file seeds_file, create_user_code
       end
     end
   end

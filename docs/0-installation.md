@@ -4,6 +4,12 @@ Active Admin is a Ruby Gem.
 
 ```ruby
 gem 'activeadmin'
+
+# Plus integrations with:
+gem 'devise'
+gem 'cancan' # or cancancan
+gem 'draper'
+gem 'pundit'
 ```
 
 More accurately, it's a [Rails Engine](http://guides.rubyonrails.org/engines.html)
@@ -27,7 +33,7 @@ The generator adds these core files, among others:
 ```
 app/admin/dashboard.rb
 app/assets/javascripts/active_admin.js.coffee
-app/assets/stylesheets/active_admin.css.scss
+app/assets/stylesheets/active_admin.scss
 config/initializers/active_admin.rb
 ```
 
